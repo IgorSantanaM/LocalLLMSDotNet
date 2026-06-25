@@ -1,5 +1,6 @@
 ﻿using System.ClientModel;
 using System.ComponentModel;
+using AiChatClient.Maui.Services;
 using Azure.AI.OpenAI;
 using CommunityToolkit.Maui;
 using CommunityToolkit.Maui.Markup;
@@ -50,6 +51,7 @@ static class MauiProgram
 		builder.Services.AddSingleton<IPreferences>(static _ => Preferences.Default);
 		builder.Services.AddSingleton<IDeviceDisplay>(static _ => DeviceDisplay.Current);
 
+		builder.Services.AddSingleton<ChatClientServices>();
 
 		builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
 		return builder.Build();

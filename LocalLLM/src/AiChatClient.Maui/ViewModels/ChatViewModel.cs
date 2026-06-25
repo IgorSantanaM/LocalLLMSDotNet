@@ -1,3 +1,4 @@
+using AiChatClient.Maui.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
@@ -6,10 +7,10 @@ using System.Diagnostics;
 
 namespace AiChatClient.Maui;
 
-public partial class ChatViewModel(IChatClient client) : BaseViewModel
+public partial class ChatViewModel(ChatClientServices chatClientServices) : BaseViewModel
 {
 
-    readonly IChatClient _client = client;
+    readonly ChatClientServices _chatClientServices = chatClientServices;
     public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
         ? "palette_filled.png"
         : "palette_outline.png";
@@ -31,7 +32,8 @@ public partial class ChatViewModel(IChatClient client) : BaseViewModel
 
         try
         {
-            throw new NotImplementedException();
+            ConversationHistory.Clear();
+            _chatClientServices.ClearConversationHistory();
         }
         finally
         {
@@ -68,10 +70,12 @@ public partial class ChatViewModel(IChatClient client) : BaseViewModel
             }
             else
             {
-                await foreach (var response in _client.GetStreamingResponseAsync(inputText))
+                await foreach (var response in _chatClientServices.GetStreamingResponseAsync(new ChatMessage(ChatRole.User, inputText), null, token))
                 {
                     assistantChatMode.Text += response.Text;
                 }
+
+                _chatClientServices.AddAssistantResponse(assistantChatMode.Text);
             }
         }
         catch (Exception e)
