@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.InMemory;
 using Microsoft.SemanticKernel.Connectors.SqliteVec;
+using Octokit;
 using OllamaSharp;
 using UglyToad.PdfPig.Filters;
 
@@ -52,6 +53,9 @@ static class MauiProgram
 		builder.Services.AddSingleton<IDeviceDisplay>(static _ => DeviceDisplay.Current);
 
 		builder.Services.AddSingleton<ChatClientServices>();
+		builder.Services.AddSingleton<GitHubServices>();
+
+		builder.Services.AddSingleton<GitHubClient>(static _ => new GitHubClient(new ProductHeaderValue("AiChatClient")));
 
 		builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
 		return builder.Build();
@@ -63,7 +67,9 @@ static class MauiProgram
 
 		var ollamaClient = new OllamaApiClient(GetLocalOllamaEndpoint(), modelId);
 
-		return ollamaClient;
+		return new ChatClientBuilder(ollamaClient)
+			.UseFunctionInvocation()
+			.Build();
 
 	}
 

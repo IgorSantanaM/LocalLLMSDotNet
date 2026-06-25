@@ -7,10 +7,11 @@ using System.Diagnostics;
 
 namespace AiChatClient.Maui;
 
-public partial class ChatViewModel(ChatClientServices chatClientServices) : BaseViewModel
+public partial class ChatViewModel(ChatClientServices chatClientServices, GitHubServices gitHubServices) : BaseViewModel
 {
 
     readonly ChatClientServices _chatClientServices = chatClientServices;
+    readonly GitHubServices _gitHubServices = gitHubServices;
     public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
         ? "palette_filled.png"
         : "palette_outline.png";
@@ -70,7 +71,16 @@ public partial class ChatViewModel(ChatClientServices chatClientServices) : Base
             }
             else
             {
-                await foreach (var response in _chatClientServices.GetStreamingResponseAsync(new ChatMessage(ChatRole.User, inputText), null, token))
+
+                var options = new ChatOptions
+                {
+                    Tools = [
+                        AIFunctionFactory.Create(_gitHubServices.GetIgorUserName),
+                        AIFunctionFactory.Create(_gitHubServices.GetRepositoryCount),
+                        AIFunctionFactory.Create(_gitHubServices.GetUserBio)
+                        ]
+                };
+                await foreach (var response in _chatClientServices.GetStreamingResponseAsync(new ChatMessage(ChatRole.User, inputText), options, token))
                 {
                     assistantChatMode.Text += response.Text;
                 }
