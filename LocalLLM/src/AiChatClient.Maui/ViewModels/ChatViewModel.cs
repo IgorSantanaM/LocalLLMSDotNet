@@ -1,76 +1,90 @@
-using System.Collections.ObjectModel;
-using System.Diagnostics;
+using AiChatClient.Maui.Services;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.AI;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 
 namespace AiChatClient.Maui;
 
-public partial class ChatViewModel : BaseViewModel
+public partial class ChatViewModel(ChatClientServices chatClientServices) : BaseViewModel
 {
-	public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
-		? "palette_filled.png"
-		: "palette_outline.png";
 
-	public ObservableCollection<ChatModel> ConversationHistory { get; } = [];
+    readonly ChatClientServices _chatClientServices = chatClientServices;
+    public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
+        ? "palette_filled.png"
+        : "palette_outline.png";
 
-	[ObservableProperty]
-	public partial string InputText { get; set; } = string.Empty;
+    public ObservableCollection<ChatModel> ConversationHistory { get; } = [];
 
-	[ObservableProperty, NotifyCanExecuteChangedFor(nameof(SubmitInputTextCommand))]
-	public partial bool CanSubmitInputTextExecute { get; private set; } = true;
+    [ObservableProperty]
+    public partial string InputText { get; set; } = string.Empty;
 
-	[ObservableProperty, NotifyPropertyChangedFor(nameof(ImageGenerationModeImageButtonSource))]
-	public partial bool IsImageGenerationMode { get; set; } = false;
+    [ObservableProperty, NotifyCanExecuteChangedFor(nameof(SubmitInputTextCommand))]
+    public partial bool CanSubmitInputTextExecute { get; private set; } = true;
 
-	public async Task ClearConversationHistory(CancellationToken token)
-	{
-		CanSubmitInputTextExecute = false;
+    [ObservableProperty, NotifyPropertyChangedFor(nameof(ImageGenerationModeImageButtonSource))]
+    public partial bool IsImageGenerationMode { get; set; } = false;
 
-		try
-		{
-			throw new NotImplementedException();
-		}
-		finally
-		{
-			CanSubmitInputTextExecute = true;
-		}
-	}
+    public async Task ClearConversationHistory(CancellationToken token)
+    {
+        CanSubmitInputTextExecute = false;
 
-	[RelayCommand(CanExecute = nameof(CanSubmitInputTextExecute))]
-	void ToggleImageGenerationModeButton()
-	{
-		IsImageGenerationMode = !IsImageGenerationMode;
-	}
+        try
+        {
+            ConversationHistory.Clear();
+            _chatClientServices.ClearConversationHistory();
+        }
+        finally
+        {
+            CanSubmitInputTextExecute = true;
+        }
+    }
 
-	[RelayCommand(IncludeCancelCommand = true, AllowConcurrentExecutions = false, CanExecute = nameof(CanSubmitInputTextExecute))]
-	async Task SubmitInputText(CancellationToken token)
-	{
-		var inputText = InputText;
-		var isImageGenerationMode = IsImageGenerationMode;
+    [RelayCommand(CanExecute = nameof(CanSubmitInputTextExecute))]
+    void ToggleImageGenerationModeButton()
+    {
+        IsImageGenerationMode = !IsImageGenerationMode;
+    }
 
-		CanSubmitInputTextExecute = false;
+    [RelayCommand(IncludeCancelCommand = true, AllowConcurrentExecutions = false, CanExecute = nameof(CanSubmitInputTextExecute))]
+    async Task SubmitInputText(CancellationToken token)
+    {
+        var inputText = InputText;
+        var isImageGenerationMode = IsImageGenerationMode;
 
-		InputText = string.Empty;
+        CanSubmitInputTextExecute = false;
 
-		try
-		{
-			if (isImageGenerationMode)
-			{
-				throw new NotImplementedException();
-			}
-			else
-			{
-				throw new NotImplementedException();
-			}
-		}
-		catch (Exception e)
-		{
-			Trace.WriteLine(e);
-		}
-		finally
-		{
-			CanSubmitInputTextExecute = true;
-		}
-	}
+        InputText = string.Empty;
+
+        ConversationHistory.Add(new ChatModel(inputText, ChatRole.User));
+
+        var assistantChatMode = new ChatModel(string.Empty, ChatRole.Assistant);
+        ConversationHistory.Add(assistantChatMode);
+
+        try
+        {
+            if (isImageGenerationMode)
+            {
+                throw new NotImplementedException();
+            }
+            else
+            {
+                await foreach (var response in _chatClientServices.GetStreamingResponseAsync(new ChatMessage(ChatRole.User, inputText), null, token))
+                {
+                    assistantChatMode.Text += response.Text;
+                }
+
+                _chatClientServices.AddAssistantResponse(assistantChatMode.Text);
+            }
+        }
+        catch (Exception e)
+        {
+            Trace.WriteLine(e);
+        }
+        finally
+        {
+            CanSubmitInputTextExecute = true;
+        }
+    }
 }

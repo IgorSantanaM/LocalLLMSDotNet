@@ -1,5 +1,6 @@
 ﻿using System.ClientModel;
 using System.ComponentModel;
+using AiChatClient.Maui.Services;
 using Azure.AI.OpenAI;
 using CommunityToolkit.Maui;
 using CommunityToolkit.Maui.Markup;
@@ -9,6 +10,7 @@ using Microsoft.Extensions.VectorData;
 using Microsoft.SemanticKernel.Connectors.InMemory;
 using Microsoft.SemanticKernel.Connectors.SqliteVec;
 using OllamaSharp;
+using UglyToad.PdfPig.Filters;
 
 namespace AiChatClient.Maui;
 
@@ -49,7 +51,20 @@ static class MauiProgram
 		builder.Services.AddSingleton<IPreferences>(static _ => Preferences.Default);
 		builder.Services.AddSingleton<IDeviceDisplay>(static _ => DeviceDisplay.Current);
 
+		builder.Services.AddSingleton<ChatClientServices>();
+
+		builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
 		return builder.Build();
+	}
+
+	static IChatClient CreateOllamaChatClient()
+	{
+		const string modelId = "qwen3.5";
+
+		var ollamaClient = new OllamaApiClient(GetLocalOllamaEndpoint(), modelId);
+
+		return ollamaClient;
+
 	}
 
 	static IServiceCollection AddTransientWithShellRoute<TView, TViewModel>(this IServiceCollection services)
