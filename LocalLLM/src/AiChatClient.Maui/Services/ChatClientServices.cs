@@ -5,8 +5,7 @@ namespace AiChatClient.Maui.Services
     public class ChatClientServices(IChatClient client)
     {
         readonly IChatClient _client = client;
-
-        readonly List<ChatMessage> _conversationHistory = [];
+        readonly List<ChatMessage> _conversationHistory = new() { new(ChatRole.System, "You always provides references. Every response must contain a link of the reference") };
 
         public IAsyncEnumerable<ChatResponseUpdate> GetStreamingResponseAsync(ChatMessage message, ChatOptions? options, CancellationToken cancellationToken = default)
         {

@@ -84,6 +84,7 @@
         <PackageReference Include="OllamaSharp" />
         <PackageReference Include="PdfPig" />
         <PackageReference Include="SQLitePCLRaw.bundle_green" />
+        <PackageReference Include="Octokit" />
     </ItemGroup>
 
 </Project>
