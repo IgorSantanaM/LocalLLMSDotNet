@@ -1,9 +1,10 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
-    <PropertyGroup>
+   <PropertyGroup>
+        <NetVersion Condition="'$(NetVersion)' == ''">net10.0</NetVersion>
         <TargetFrameworks>$(NetVersion)-android;$(NetVersion)-ios;$(NetVersion)-maccatalyst</TargetFrameworks>
         <TargetFrameworks Condition="$([MSBuild]::IsOSPlatform('windows'))">$(TargetFrameworks);$(NetVersion)-windows10.0.19041.0</TargetFrameworks>
-
+        <WarningsNotAsErrors>$(WarningsNotAsErrors);NU1901;NU1902;NU1903;NU1904</WarningsNotAsErrors>
         <OutputType>Exe</OutputType>
         <RootNamespace>AiChatClient.Maui</RootNamespace>
         <UseMaui>true</UseMaui>
