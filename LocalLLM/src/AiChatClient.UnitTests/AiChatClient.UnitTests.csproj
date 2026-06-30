@@ -15,6 +15,7 @@
     <PackageReference Include="NUnit3TestAdapter" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.Quality" />
     <PackageReference Include="Microsoft.Extensions.AI.Evaluation.NLP" />
+    <PackageReference Include="Microsoft.SemanticKernel.Connectors.InMemory" />
   </ItemGroup>
 
   <ItemGroup>
