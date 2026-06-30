@@ -57,11 +57,22 @@ static class MauiProgram
 
 		builder.Services.AddSingleton<GitHubClient>(static _ => new GitHubClient(new ProductHeaderValue("AiChatClient")));
 
-		builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
-		return builder.Build();
+        // Lazy loading of the chat client to avoid creating it at startup
+        builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
+		builder.Services.AddEmbeddingGenerator(static _ => CreateOllamaEmbeddingGenerator());
+
+		builder.Services.AddSingleton<PdfIngestionService>();
+        return builder.Build();
 	}
 
-	static IChatClient CreateOllamaChatClient()
+    private static IEmbeddingGenerator<string, Embedding<float>> CreateOllamaEmbeddingGenerator()
+    {
+        const string modelId = "qwen3-embedding";
+
+        return new OllamaApiClient(GetLocalOllamaEndpoint(), modelId);
+    }
+
+    static IChatClient CreateOllamaChatClient()
 	{
 		const string modelId = "qwen3.5";
 
