@@ -4,18 +4,30 @@ using OllamaSharp;
 
 namespace AiChatClient.UnitTests
 {
-    public abstract class BaseTest
+    public abstract class BaseTest 
     {
+        readonly Lazy<IEmbeddingGenerator<string, Embedding<float>>> _embeddingGeneratorHolder = new(CreateOllamaEmbeddingGenerator);
         readonly Lazy<IChatClient> _chatClientHolder = new(CreateOllamaChatClient);
         readonly Lazy<GitHubClient> _gitHubClientHolder = new(new GitHubClient(new ProductHeaderValue("AiChatClient")));
         protected IChatClient ChatClient  => _chatClientHolder.Value;
         protected GitHubClient GitHubClient => _gitHubClientHolder.Value;
+        protected IEmbeddingGenerator<string, Embedding<float>> EmbeddingGenerator => _embeddingGeneratorHolder.Value;
 
-        [TearDown]
+        [OneTimeTearDown]
         protected virtual void TearDown()
         {
             if (_chatClientHolder.IsValueCreated)
                 ChatClient.Dispose();
+
+            if (_embeddingGeneratorHolder.IsValueCreated)
+                EmbeddingGenerator.Dispose();
+        }
+
+        private static IEmbeddingGenerator<string, Embedding<float>> CreateOllamaEmbeddingGenerator()
+        {
+            const string modelId = "qwen3-embedding";
+
+            return new OllamaApiClient("http://127.0.0.1:11434", modelId);
         }
 
         static IChatClient CreateOllamaChatClient()
