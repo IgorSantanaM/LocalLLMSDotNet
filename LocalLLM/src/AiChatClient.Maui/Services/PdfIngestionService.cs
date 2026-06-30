@@ -1,22 +1,26 @@
 using AiChatClient.Maui.Models;
 using Microsoft.Extensions.AI;
+using Microsoft.Extensions.VectorData;
 using System.Numerics.Tensors;
 using UglyToad.PdfPig;
 
 namespace AiChatClient.Maui.Services;
 
-public class PdfIngestionService(IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
+public class PdfIngestionService([FromKeyedServices("PdfVectorStore")] VectorStoreCollection<string, PdfChunkRecord> vectorStoreCollection,
+    IEmbeddingGenerator<string, Embedding<float>> embeddingGenerator)
 {
     const int _chunkSize = 1000;
     const int _chunkOverlap = 200;
 
     IEmbeddingGenerator<string, Embedding<float>> _embeddingGenerator = embeddingGenerator;
-    readonly List<PdfChunkRecord> _pdfChunkRecords = new();
+    readonly VectorStoreCollection<string, PdfChunkRecord> _vector = vectorStoreCollection;
 
     public async Task IngestPdfAsync(Stream pdfStream, string fileName, CancellationToken token = default)
     {
-        var text = ExtractTextFromPdf(pdfStream);
+        await _vector.EnsureCollectionExistsAsync(token);
 
+        var text = ExtractTextFromPdf(pdfStream);
+        var chunkList = new List<PdfChunkRecord>();
         foreach (var chunk in ChunkText(text))
         {
             var embedding = await _embeddingGenerator.GenerateAsync(chunk, cancellationToken: token);
@@ -27,31 +31,28 @@ public class PdfIngestionService(IEmbeddingGenerator<string, Embedding<float>> e
                 Text = chunk,
                 Vector = embedding.Vector
             };
-
-            _pdfChunkRecords.Add(pdfChunkRecord);
+            chunkList.Add(pdfChunkRecord);
         }
+        await _vector.UpsertAsync(chunkList, token);
     }
 
     public async Task<string?> SearchAsync(string query, CancellationToken token = default)
     {
-        if (_pdfChunkRecords.Count is 0)
+        var collectionExists = await _vector.CollectionExistsAsync(token);
+
+        if (!collectionExists)
             return null;
 
         var queryEmbedding = await _embeddingGenerator.GenerateAsync(query, cancellationToken: token);
 
         var matchingResults = new List<PdfChunkRecord>();
 
-        foreach (var chunk in _pdfChunkRecords)
+        await foreach (var result in _vector.SearchAsync(queryEmbedding.Vector, 10, cancellationToken: token))
         {
-            var similarity = TensorPrimitives.CosineSimilarity(queryEmbedding.Vector.Span,
-                chunk.Vector.Span);
-
-            if (similarity > 0.5f)
-            {
-                matchingResults.Add(chunk);
-            }
-
+            if(result.Score < 0.5f)
+                matchingResults.Add(result.Record);
         }
+
         if (matchingResults.Count is 0)
             return null;
 
