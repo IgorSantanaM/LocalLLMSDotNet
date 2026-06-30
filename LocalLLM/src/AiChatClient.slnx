@@ -6,4 +6,5 @@
     <File Path="global.json" />
   </Folder>
   <Project Path="AiChatClient.Maui\AiChatClient.Maui.csproj" />
+  <Project Path="AiChatClient.UnitTests/AiChatClient.UnitTests.csproj" Id="933363d3-dd86-4ffd-9b36-46cd005f3669" />
 </Solution>

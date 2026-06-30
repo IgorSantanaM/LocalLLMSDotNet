@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Text.Json;
+using AiChatClient.Maui.Services;
 using CommunityToolkit.Maui.Alerts;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -8,12 +9,14 @@ using Trace = System.Diagnostics.Trace;
 namespace AiChatClient.Maui;
 
 public partial class TrainedFilesViewModel(
+	PdfIngestionService pdfIngestionService,
 	TrainedFileNameService trainedFileNameService,
 	IFilePicker filePicker)
 	: BaseViewModel
 {
 	readonly IFilePicker _filePicker = filePicker;
-	readonly TrainedFileNameService _trainedFileNameService = trainedFileNameService;
+	readonly PdfIngestionService _pdfIngestionService = pdfIngestionService;
+    readonly TrainedFileNameService _trainedFileNameService = trainedFileNameService;
 
 	public IReadOnlyList<string> TrainedFileNames => _trainedFileNameService.TrainedFileNames;
 
@@ -35,9 +38,14 @@ public partial class TrainedFilesViewModel(
 
 			if (result is null)
 				return;
+			await using var stream = await result.OpenReadAsync();
+            await _pdfIngestionService.IngestPdfAsync(stream, result.FileName, token);
 
-			throw new NotImplementedException();
-		}
+			_trainedFileNameService.AddFilename(result.FileName);
+			OnPropertyChanged(nameof(TrainedFileNames));
+
+			await Toast.Make($"Succesfully ingested {result.FileName}").Show(token);
+        }
 		catch (Exception e)
 		{
 			Trace.TraceError(e.ToString());

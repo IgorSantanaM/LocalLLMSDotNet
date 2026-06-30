@@ -7,11 +7,15 @@ using System.Diagnostics;
 
 namespace AiChatClient.Maui;
 
-public partial class ChatViewModel(ChatClientServices chatClientServices, GitHubServices gitHubServices) : BaseViewModel
+public partial class ChatViewModel(
+    PdfIngestionService pdfIngestionService,
+    ChatClientServices chatClientServices, 
+    GitHubServices gitHubServices) : BaseViewModel
 {
 
     readonly ChatClientServices _chatClientServices = chatClientServices;
     readonly GitHubServices _gitHubServices = gitHubServices;
+    readonly PdfIngestionService _pdfIngestionService = pdfIngestionService;
     public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
         ? "palette_filled.png"
         : "palette_outline.png";
@@ -80,6 +84,18 @@ public partial class ChatViewModel(ChatClientServices chatClientServices, GitHub
                         AIFunctionFactory.Create(_gitHubServices.GetUserBio)
                         ]
                 };
+                
+                var pdfContext = await _pdfIngestionService.SearchAsync(inputText, token);
+
+                var prompt = pdfContext is null ? inputText :
+                    $@"Use the following context from the ingested documents to answer the question.
+                        If the context does not contain the answer, say so.
+                    
+                        Context: {pdfContext}
+
+                        Question: {inputText}
+                    ";
+
                 await foreach (var response in _chatClientServices.GetStreamingResponseAsync(new ChatMessage(ChatRole.User, inputText), options, token))
                 {
                     assistantChatMode.Text += response.Text;
