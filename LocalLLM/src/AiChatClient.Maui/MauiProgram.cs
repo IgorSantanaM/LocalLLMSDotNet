@@ -1,5 +1,6 @@
 ﻿using System.ClientModel;
 using System.ComponentModel;
+using AiChatClient.Maui.Models;
 using AiChatClient.Maui.Services;
 using Azure.AI.OpenAI;
 using CommunityToolkit.Maui;
@@ -60,6 +61,7 @@ static class MauiProgram
         // Lazy loading of the chat client to avoid creating it at startup
         builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
 		builder.Services.AddEmbeddingGenerator(static _ => CreateOllamaEmbeddingGenerator());
+		builder.Services.AddKeyedSingleton("PdfVectorStore", static (_, _) => CreateVectorCollection());
 
 		builder.Services.AddSingleton<PdfIngestionService>();
         return builder.Build();
@@ -84,6 +86,19 @@ static class MauiProgram
 
 	}
 
+
+	static VectorStoreCollection<string, PdfChunkRecord> CreateVectorCollection()
+	{
+		const string collectionName = "pdf-chunks";
+
+#if ANDROID || IOS
+	var vectorStore = new InMemoryVectorStore();
+#else
+		var dbPath = Path.Combine(FileSystem.AppDataDirectory, "vectorstore.db");
+		var vectorStore = new SqliteVectorStore($"Date Source={dbPath}");
+#endif
+		return vectorStore.GetCollection<string, PdfChunkRecord>(collectionName);
+	}
 	static IServiceCollection AddTransientWithShellRoute<TView, TViewModel>(this IServiceCollection services)
 		where TView : NavigableElement, IRoutable
 		where TViewModel : class, INotifyPropertyChanged
