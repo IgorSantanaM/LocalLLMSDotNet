@@ -14,6 +14,11 @@ namespace AiChatClient.Maui.Services
             return _client.GetStreamingResponseAsync(_conversationHistory, options, cancellationToken);
         }
 
+        public void AddUserInput(string text)
+        {
+            _conversationHistory.Add(new ChatMessage(ChatRole.User, text));
+        }
+
         public void AddAssistantResponse(string responseText)
         {
             _conversationHistory.Add(new ChatMessage(ChatRole.Assistant, responseText));

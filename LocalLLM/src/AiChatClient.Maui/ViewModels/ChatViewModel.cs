@@ -8,14 +8,16 @@ using System.Diagnostics;
 namespace AiChatClient.Maui;
 
 public partial class ChatViewModel(
+    ImageGenerationService imageGenerationService,
     PdfIngestionService pdfIngestionService,
-    ChatClientServices chatClientServices, 
+    ChatClientServices chatClientServices,
     GitHubServices gitHubServices) : BaseViewModel
 {
 
     readonly ChatClientServices _chatClientServices = chatClientServices;
     readonly GitHubServices _gitHubServices = gitHubServices;
     readonly PdfIngestionService _pdfIngestionService = pdfIngestionService;
+    readonly ImageGenerationService _imageGenerationService = imageGenerationService;
     public string ImageGenerationModeImageButtonSource => IsImageGenerationMode
         ? "palette_filled.png"
         : "palette_outline.png";
@@ -71,7 +73,17 @@ public partial class ChatViewModel(
         {
             if (isImageGenerationMode)
             {
-                throw new NotImplementedException();
+                _chatClientServices.AddUserInput(inputText);
+                var image = await _imageGenerationService.GenerateImageAsync(inputText, token);
+                if (image is not null)
+                {
+                    assistantChatMode.ImageData = image;
+                    assistantChatMode.Text = "Here's the generated image";
+                }
+                else
+                {
+                    assistantChatMode.Text = "Failed to generate image.";
+                }
             }
             else
             {
@@ -84,7 +96,7 @@ public partial class ChatViewModel(
                         AIFunctionFactory.Create(_gitHubServices.GetUserBio)
                         ]
                 };
-                
+
                 var pdfContext = await _pdfIngestionService.SearchAsync(inputText, token);
 
                 var prompt = pdfContext is null ? inputText :
@@ -101,8 +113,8 @@ public partial class ChatViewModel(
                     assistantChatMode.Text += response.Text;
                 }
 
-                _chatClientServices.AddAssistantResponse(assistantChatMode.Text);
             }
+            _chatClientServices.AddAssistantResponse(assistantChatMode.Text);
         }
         catch (Exception e)
         {
