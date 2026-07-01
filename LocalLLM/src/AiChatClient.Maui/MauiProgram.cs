@@ -1,5 +1,6 @@
 ﻿using System.ClientModel;
 using System.ComponentModel;
+using System.Runtime.Versioning;
 using AiChatClient.Maui.Models;
 using AiChatClient.Maui.Services;
 using Azure.AI.OpenAI;
@@ -18,6 +19,9 @@ namespace AiChatClient.Maui;
 
 static class MauiProgram
 {
+    private static string _azureApiKey = "";
+    private static string _azureEndPointUrl = "";
+
 	public static MauiApp CreateMauiApp()
 	{
 		var builder = MauiApp.CreateBuilder()
@@ -58,14 +62,60 @@ static class MauiProgram
 
 		builder.Services.AddSingleton<GitHubClient>(static _ => new GitHubClient(new ProductHeaderValue("AiChatClient")));
 
-        // Lazy loading of the chat client to avoid creating it at startup
-        builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
+		// Lazy loading of the chat client to avoid creating it at startup
+		builder.Services.AddChatClient(static _ => CreateOllamaChatClient());
 		builder.Services.AddEmbeddingGenerator(static _ => CreateOllamaEmbeddingGenerator());
-		builder.Services.AddKeyedSingleton("PdfVectorStore", static (_, _) => CreateVectorCollection());
+		builder.Services.AddImageGenerator(static _ => CreateAzureOpenAiImageGenerator());
+		builder.Services.AddChatClient(static _ => {
+			if(OperatingSystem.IsIOSVersionAtLeast(26) || OperatingSystem.IsMacCatalystVersionAtLeast(26) || OperatingSystem.IsMacOSVersionAtLeast(26)
+			&& DeviceInfo.Current.DeviceType == DeviceType.Physical)
+				return CreateAppleIntelligenceChatClient();
+			return CreateOllamaChatClient();
+        });
+        builder.Services.AddEmbeddingGenerator(static _ => {
+            if (OperatingSystem.IsIOSVersionAtLeast(13) || OperatingSystem.IsMacCatalystVersionAtLeast(13, 1)
+            && DeviceInfo.Current.DeviceType == DeviceType.Physical)
+                return CreateAppleEmbeddingGenerator();
+            return CreateOllamaEmbeddingGenerator();
+        });
+        builder.Services.AddSingleton<ImageGenerationService>();
+        builder.Services.AddKeyedSingleton("PdfVectorStore", static (_, _) => CreateVectorCollection());
 
 		builder.Services.AddSingleton<PdfIngestionService>();
         return builder.Build();
 	}
+	static IImageGenerator CreateAzureOpenAiImageGenerator()
+	{
+		const string imageModel = "gpt-image-1.5";
+		var apiCKeyCredential = new ApiKeyCredential(_azureApiKey);
+
+        return new AzureOpenAIClient(new Uri(_azureEndPointUrl), apiCKeyCredential)
+			.GetImageClient(imageModel)
+			.AsIImageGenerator();
+	}
+	[SupportedOSPlatform("iOS26.0")]
+	[SupportedOSPlatform("macos26.0")]
+	[SupportedOSPlatform("maccatalyst26.0")]
+	static IChatClient CreateAppleIntelligenceChatClient()
+	{
+#if IOS || MACCATALYST
+		return new AppleIntelligenceClient();
+#else 
+		throw new NotSupportedException("Apple Intelligence is only supported on iOS and macOS platforms.");
+#endif
+	}
+
+    [SupportedOSPlatform("iOS13.0")]
+    [SupportedOSPlatform("macos10.15")]
+    [SupportedOSPlatform("maccatalyst13.1")]
+    static IEmbeddingGenerator<string, Embedding<float>> CreateAppleEmbeddingGenerator()
+    {
+#if IOS || MACCATALYST
+		return new NLEmbeddingGenerator();
+#else
+        throw new NotSupportedException("Apple Intelligence is only supported on iOS and macOS platforms.");
+#endif
+    }
 
     private static IEmbeddingGenerator<string, Embedding<float>> CreateOllamaEmbeddingGenerator()
     {
@@ -91,7 +141,7 @@ static class MauiProgram
 	{
 		const string collectionName = "pdf-chunks";
 
-#if ANDROID || IOS
+#if ANDROID || IOS || MACCATALYST
 	var vectorStore = new InMemoryVectorStore();
 #else
 		var dbPath = Path.Combine(FileSystem.AppDataDirectory, "vectorstore.db");

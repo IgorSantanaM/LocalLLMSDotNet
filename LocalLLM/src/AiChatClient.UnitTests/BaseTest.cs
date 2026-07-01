@@ -1,6 +1,8 @@
-﻿using Microsoft.Extensions.AI;
+﻿using Azure.AI.OpenAI;
+using Microsoft.Extensions.AI;
 using Octokit;
 using OllamaSharp;
+using System.ClientModel;
 
 namespace AiChatClient.UnitTests
 {
@@ -8,9 +10,14 @@ namespace AiChatClient.UnitTests
     {
         readonly Lazy<IEmbeddingGenerator<string, Embedding<float>>> _embeddingGeneratorHolder = new(CreateOllamaEmbeddingGenerator);
         readonly Lazy<IChatClient> _chatClientHolder = new(CreateOllamaChatClient);
+        readonly Lazy<IImageGenerator> _imageGeneratorHolder = new(CreateAzureOpenAiImageGenerator);
         readonly Lazy<GitHubClient> _gitHubClientHolder = new(new GitHubClient(new ProductHeaderValue("AiChatClient")));
+        private static string _azureApiKey = "";
+        private static string _azureEndPointUrl = "";
+
         protected IChatClient ChatClient  => _chatClientHolder.Value;
         protected GitHubClient GitHubClient => _gitHubClientHolder.Value;
+        protected IImageGenerator ImageGenerator => _imageGeneratorHolder.Value;
         protected IEmbeddingGenerator<string, Embedding<float>> EmbeddingGenerator => _embeddingGeneratorHolder.Value;
 
         [OneTimeTearDown]
@@ -21,6 +28,16 @@ namespace AiChatClient.UnitTests
 
             if (_embeddingGeneratorHolder.IsValueCreated)
                 EmbeddingGenerator.Dispose();
+        }
+
+        static IImageGenerator CreateAzureOpenAiImageGenerator()
+        {
+            const string imageModel = "gpt-image-1.5";
+            var apiCKeyCredential = new ApiKeyCredential(_azureApiKey);
+
+            return new AzureOpenAIClient(new Uri(_azureEndPointUrl), apiCKeyCredential)
+                .GetImageClient(imageModel)
+                .AsIImageGenerator();
         }
 
         private static IEmbeddingGenerator<string, Embedding<float>> CreateOllamaEmbeddingGenerator()
